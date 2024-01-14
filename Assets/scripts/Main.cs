@@ -1,60 +1,130 @@
 using UnityEngine;
 using UnityEngine.UI;
 
-public class FruitCombineGame : MonoBehaviour
+public class VegetableCombineGame : MonoBehaviour
 {
     public GameObject[] vegetables;
-    
-    
+    public Text nextVegetableText;
+    public Text scoreText;
+    private int[] vegetableScores = { 10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 110 };
 
-    private GameObject currentvegetable;
-    private GameObject nextvegetable;
-    
+    private GameObject currentVegetable;
+    private GameObject nextVegetable;
+    private int score;
 
     private float moveSpeed = 5f;
-    private float borderX = 15f;
+    private float borderX = 5f;
     private bool canMove = true;
 
-    void Start() //pradeda zaidima
+    void Start()
     {
         InitializeGame();
     }
 
-    void Update() // normaliai vegetable turetu likti virsuj ir cia yra kad negaletum uz ribu ismest (working progress)
+    void Update()
     {
         if (canMove)
         {
-            MoveFruit();
+            MoveVegetable();
 
-        
+            // Check if the left mouse button is clicked
+            if (Input.GetMouseButtonDown(0))
+            {
+                // Drop the vegetable when left mouse button is clicked
+                DropVegetable();
+            }
         }
     }
 
-    void InitializeGame() // pradeda zaidima atspawnindamas vegetable
+    void InitializeGame()
     {
-        Spawnvegetable();
-        
-       
-       
+        SpawnVegetable();
+        SetNextVegetable();
+        score = 0;
+        UpdateScoreUI();
+        canMove = true;
     }
 
-    void Spawnvegetable() // neveikia bet labai arti
+    void SpawnVegetable()
     {
-        currentvegetable = Instantiate(vegetables[Random.Range(0, 5)], new Vector2(0f, 8f), Quaternion.identity);
+        currentVegetable = Instantiate(vegetables[Random.Range(0, 5)], new Vector2(0f, 8f), Quaternion.identity);
+
+        Rigidbody2D rigidbody2D = currentVegetable.GetComponent<Rigidbody2D>();
+        if (rigidbody2D != null)
+        {
+            rigidbody2D.gravityScale = 0f;
+        }
     }
 
-
-
-
-    void MoveFruit()
+    void SetNextVegetable()
     {
-        float ximput = Input.GetAxis("Horizontal");
-        Vector2 currentpos = currentvegetable.transform.position;
-        currentpos.x += ximput * moveSpeed * Time.deltaTime;
-        currentpos.x = Mathf.Clamp(currentpos.x, -borderX, borderX);
-        currentvegetable.transform.position = currentpos;
+        nextVegetable = Instantiate(vegetables[Random.Range(0, 5)], new Vector2(0f, 8f), Quaternion.identity);
+        nextVegetable.SetActive(false); // Initially, set it inactive
+        nextVegetableText.text = "Next Vegetable: " + nextVegetable.name;
     }
 
-    
-    
+    void UpdateScoreUI()
+    {
+        scoreText.text = "Score: " + score.ToString();
+    }
+
+    void MoveVegetable()
+    {
+        float horizontalInput = Input.GetAxis("Horizontal");
+        Vector2 currentPosition = currentVegetable.transform.position;
+        currentPosition.x += horizontalInput * moveSpeed * Time.deltaTime;
+
+        currentPosition.x = Mathf.Clamp(currentPosition.x, -borderX, borderX);
+
+        currentVegetable.transform.position = currentPosition;
+    }
+
+    void DropVegetable()
+    {
+        canMove = false;
+
+        Rigidbody2D rigidbody2D = currentVegetable.GetComponent<Rigidbody2D>();
+        if (rigidbody2D != null)
+        {
+            rigidbody2D.gravityScale = 1f;
+        }
+
+        // Spawn the next vegetable after the current one touches the ground
+        Invoke("SpawnNextVegetable", 1f);
+    }
+
+    void SpawnNextVegetable()
+    {
+        nextVegetable.SetActive(true);
+        canMove = true;
+    }
+
+    public void CombineVegetables(GameObject droppedVegetable)
+    {
+        Collider2D[] nearbyVegetables = Physics2D.OverlapCircleAll(droppedVegetable.transform.position, 0.5f);
+
+        foreach (Collider2D nearbyVegetable in nearbyVegetables)
+        {
+            if (nearbyVegetable.gameObject != droppedVegetable && nearbyVegetable.CompareTag(droppedVegetable.tag))
+            {
+                Destroy(nearbyVegetable.gameObject);
+                Destroy(droppedVegetable);
+
+                int combinedVegetableIndex = System.Array.IndexOf(vegetables, nearbyVegetable.gameObject) + 1;
+                if (combinedVegetableIndex < vegetables.Length)
+                {
+                    score += vegetableScores[combinedVegetableIndex];
+                    UpdateScoreUI();
+                }
+
+                SetNextVegetable();
+                nextVegetable.SetActive(false); // Set it inactive again until the current one touches the ground
+                return;
+            }
+        }
+
+        canMove = true;
+    }
 }
+
+
